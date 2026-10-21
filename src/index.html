@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Корабель у Скляній Пляшці</title>
+    <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+    <canvas class="webgl"></canvas>
+
+    <!-- Nautical Telemetry & Interactive HUD -->
+    <div id="hud" class="hud-container">
+        <!-- Bottom Action Bar -->
+        <div class="hud-controls">
+            <button id="btn-cannons" class="nautical-btn" title="Дати бортовий залп із гармат корабля (Пробіл)">
+                <span>🔥</span> Залп гармат
+            </button>
+            <button id="btn-wave" class="nautical-btn" title="Здійняти велику хвилю в океані">
+                <span>🌊</span> Збурити хвилю
+            </button>
+            <button id="btn-weather" class="nautical-btn" title="Перемкнути погоду та час доби всередині пляшки">
+                <span>🌅</span> Змінити погоду
+            </button>
+            <button id="btn-lighthouse" class="nautical-btn" title="Увімкнути або вимкнути прожектор воксельного маяка">
+                <span>🚨</span> Маяк
+            </button>
+            <button id="btn-treasure" class="nautical-btn" title="Відкрити скриню зі скарбами на кораловому атолі">
+                <span>💰</span> Скарби острова
+            </button>
+            <button id="btn-cork" class="nautical-btn" title="Відкоркувати або закоркувати скляну пляшку">
+                <span>🍾</span> Корок пляшки
+            </button>
+            <button id="btn-camera" class="nautical-btn" title="Змінити ракурс камери">
+                <span>🎥</span> Ракурс
+            </button>
+            <button id="btn-stats" class="nautical-btn" title="Показати/Приховати графік FPS (Клавіша F)">
+                <span>📊</span> Графік FPS
+            </button>
+        </div>
+    </div>
+
+    <button id="btn-toggle-hud" class="hud-toggle-btn" title="Приховати/Показати інтерфейс (Клавіша H)">
+        HUD [H]
+    </button>
+
+    <script type="module" src="./script.js"></script>
+</body>
+</html>

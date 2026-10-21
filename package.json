@@ -1,0 +1,21 @@
+{
+  "name": "voxel-ship-in-bottle",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Intricate interactive 3D Voxel Art Ship in a Glass Bottle built with Three.js, GSAP, and lil-gui",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "vite": "^6.2.2",
+    "vite-plugin-restart": "^0.4.2"
+  },
+  "dependencies": {
+    "gsap": "^3.12.5",
+    "lil-gui": "^0.20.0",
+    "three": "^0.174.0"
+  }
+}
