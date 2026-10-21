@@ -128,19 +128,3 @@ export const LANDMARK_COORDS = {
     treasureIsland: { x: 1.65, z: 0.58 },
     seaArch: { x: 1.40, y: -0.36, z: -0.95 }
 }
-
-export const SHIP_PALETTE = {
-    keel: '#2d1a10',
-    hullDark: '#4a2c18',
-    hullMid: '#6b3e23',
-    hullLight: '#8c5532',
-    deck: '#a67c52',
-    deckAlt: '#946b45',
-    gold: '#f59e0b',
-    trim: '#0284c7',
-    mast: '#5c3a21',
-    sail: '#fef9e7',
-    sailShade: '#f3e5ab',
-    emblem: '#dc2626',
-    iron: '#1e293b'
-}

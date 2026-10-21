@@ -1,18 +1,17 @@
 import * as THREE from 'three'
-import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import gsap from 'gsap'
-import { VoxelBuilder } from '../utils/VoxelBuilder.js'
 
 /**
- * Модуль Динамічної Морської Фауни, Хмар та Плаваючих Деталей всередині пляшки.
+ * Модуль морської фауни, хмар та плаваючих деталей всередині пляшки.
  * Відповідає за:
- * 1) Анімовані щупальця воксельного Кракена з інтерактивним ударом по воді.
- * 2) Плаваючі на хвилях бочки з ромом та сигнальний навігаційний буй.
- * 3) Пухнасті воксельні хмари та зграю чайок під скляним склепінням пляшки.
+ * 1) Модель та анімацію щупалець Кракена з реакцією на клік.
+ * 2) Моделі плаваючих бочок та сигнального буя.
+ * 3) Моделі воксельних хмар та зграю чайок.
  */
 export class VoxelWildlifeAndProps {
-    constructor(scene) {
+    constructor(scene, modelManager = null) {
         this.scene = scene
+        this.modelManager = modelManager
         this.group = new THREE.Group()
         this.scene.add(this.group)
 
@@ -26,7 +25,7 @@ export class VoxelWildlifeAndProps {
 
         this.proxyMat = new THREE.MeshBasicMaterial({ visible: false })
 
-        // Математичні dummy-об'єкти для розрахунку матриць інстансів без алокації пам'яті
+        // Допоміжні об'єкти для розрахунку матриць інстансів без алокації
         this.dummySeg = new THREE.Object3D()
         this.dummySucker = new THREE.Object3D()
         this.dummySeg.add(this.dummySucker)
@@ -43,73 +42,26 @@ export class VoxelWildlifeAndProps {
         this.buildVoxelCloudsAndSeagulls()
     }
 
-    /**
-     * Побудова повноцінного воксельного Кракена: підводний тулуб, куполоподібна мантія з плавниками,
-     * світильні очі біля ватерлінії, глибинні кореневі щупальця під водою та 4 рухомі бойові щупальця.
-     */
     buildKraken() {
         this.krakenGroup = new THREE.Group()
         this.krakenGroup.position.set(-1.22, -0.34, 0.68)
         this.group.add(this.krakenGroup)
 
-        const vs = 0.042
-        const vb = new VoxelBuilder(vs, 1.0)
-
-        // 1. Куполоподібна голова та мантія Кракена (частково виринає над водою та уходить під воду: gy = -7..+5)
-        vb.fillEllipsoid(0, 0, 0, 3.8, 4.8, 3.6, '#7e22ce', 0.04)
-        vb.fillEllipsoid(-0.5, 2.5, -0.5, 3.2, 3.5, 3.0, '#9333ea', 0.04)
-        vb.fillEllipsoid(-1.0, 4.5, -0.8, 2.2, 2.2, 2.2, '#a855f7', 0.03)
-
-        // Бічні плавники на мантії Кракена
-        vb.fillBox(-4, 2, -1, -3, 4, 1, '#6b21a8', 0.03)
-        vb.fillBox(3, 2, -1, 4, 4, 1, '#6b21a8', 0.03)
-
-        // Надбрівні дуги та яскраві жовто-багряні очі Кракена, спрямовані на корабель
-        for (const sideZ of [-2, 2]) {
-            vb.add(3, 1, sideZ, '#581c87', 0.01)
-            vb.add(4, 0, sideZ, '#facc15', 0.0) // золоте світильне око
-            vb.add(4, 0, sideZ + (sideZ > 0 ? -1 : 1), '#ef4444', 0.0) // багряна зіниця
+        // Модель тіла Кракена
+        this.krakenBodyMesh = this.modelManager ? this.modelManager.getMesh('kraken_body') : null
+        if (this.krakenBodyMesh) {
+            this.krakenBodyMesh.castShadow = true
+            this.krakenBodyMesh.receiveShadow = true
+            this.krakenGroup.add(this.krakenBodyMesh)
         }
 
-        // Біолюмінесцентні бірюзові плями на мантії
-        const bioSpots = [
-            [-2, 3, 2], [1, 4, -2], [-3, 1, -2], [0, 5, 1], [-2, -2, 3], [2, -3, -2]
-        ]
-        for (const [bx, by, bz] of bioSpots) {
-            vb.add(bx, by, bz, '#2dd4bf', 0.0)
-        }
-
-        // 2. Підводна частина тіла та 6 глибинних щупалець під водою (gy = -5..-18)
-        vb.fillCylinderY(0, -10, -4, 2.6, 3.5, '#581c87', 0.04)
-        for (let arm = 0; arm < 6; arm++) {
-            const angle = (arm / 6) * Math.PI * 2
-            for (let depth = 5; depth <= 18; depth++) {
-                const t = (depth - 5) / 13
-                const r = 2.4 + t * 3.8 + Math.sin(depth * 0.6 + arm) * 0.6
-                const gx = Math.round(Math.cos(angle + t * 0.5) * r)
-                const gy = -depth
-                const gz = Math.round(Math.sin(angle + t * 0.5) * r)
-                vb.add(gx, gy, gz, depth % 3 === 0 ? '#6b21a8' : '#4c1d95', 0.03)
-                if (depth % 4 === 0) {
-                    vb.add(gx, gy + 1, gz, '#14b8a6', 0.0)
-                }
-            }
-        }
-
-        this.krakenBodyMesh = vb.buildCulledMesh()
-        this.krakenBodyMesh.castShadow = true
-        this.krakenBodyMesh.receiveShadow = true
-        this.krakenGroup.add(this.krakenBodyMesh)
-
-        // 3. Чотири рухомі бойові щупальця над водою (MeshLambertMaterial ідентичний до тулуба Кракена)
+        // Анімовані щупальця над водою через InstancedMesh
         const segGeo = new THREE.BoxGeometry(0.082, 0.082, 0.082)
         const purpleColor = new THREE.Color('#7e22ce')
         const darkPurpleColor = new THREE.Color('#6b21a8')
 
         const tentacleMat = new THREE.MeshLambertMaterial()
-        const suckerMat = new THREE.MeshLambertMaterial({
-            color: '#2dd4bf'
-        })
+        const suckerMat = new THREE.MeshLambertMaterial({ color: '#2dd4bf' })
 
         const tentacleConfigs = [
             { baseX: 0.18, baseZ: -0.14, dirX: 0.14, dirZ: -0.10, count: 10 },
@@ -170,7 +122,7 @@ export class VoxelWildlifeAndProps {
         this.krakenGroup.add(this.tentacleInstancedMesh)
         this.krakenGroup.add(this.suckerInstancedMesh)
 
-        // Габаритний проксі-бокс Кракена для миттєвої взаємодії через Raycaster
+        // Проксі-бокс для взаємодії через клік
         const krakenProxy = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.95, 0.65), this.proxyMat)
         krakenProxy.position.set(0, 0.1, 0)
         krakenProxy.userData = { interactiveType: 'kraken' }
@@ -191,25 +143,23 @@ export class VoxelWildlifeAndProps {
         const propProxyGeo = new THREE.BoxGeometry(0.26, 0.28, 0.26)
 
         // 1. Плаваючі бочки через InstancedMesh
-        const barrelVb = new VoxelBuilder(0.04, 1.0)
-        barrelVb.fillBox(-2, -2, -2, 2, 2, 2, '#92400e', 0.03)
-        barrelVb.fillBox(-2, -1, -2, 2, -1, 2, '#334155', 0.01)
-        barrelVb.fillBox(-2, 1, -2, 2, 1, 2, '#334155', 0.01)
-        const sampleBarrelMesh = barrelVb.buildCulledMesh()
-
+        const barrelMesh = this.modelManager ? this.modelManager.getMesh('barrel') : null
         const barrelPositions = [
             [-1.05, -0.82],
             [0.75, -0.68],
             [0.95, 0.98]
         ]
-        this.barrelInstancedMesh = new THREE.InstancedMesh(
-            sampleBarrelMesh.geometry,
-            sampleBarrelMesh.material,
-            barrelPositions.length
-        )
-        this.barrelInstancedMesh.castShadow = false
-        this.barrelInstancedMesh.receiveShadow = false
-        this.group.add(this.barrelInstancedMesh)
+
+        if (barrelMesh) {
+            this.barrelInstancedMesh = new THREE.InstancedMesh(
+                barrelMesh.geometry,
+                barrelMesh.material,
+                barrelPositions.length
+            )
+            this.barrelInstancedMesh.castShadow = false
+            this.barrelInstancedMesh.receiveShadow = false
+            this.group.add(this.barrelInstancedMesh)
+        }
 
         for (let i = 0; i < barrelPositions.length; i++) {
             const [x, z] = barrelPositions[i]
@@ -223,29 +173,27 @@ export class VoxelWildlifeAndProps {
         }
 
         // 2. Морський навігаційний буй
-        const buoyVb = new VoxelBuilder(0.038, 1.0)
-        buoyVb.fillCylinderY(0, -2, 2, 2.5, 2.0, '#ef4444', 0.02)
-        buoyVb.fillCylinderY(0, 3, 6, 1.5, 0.8, '#f8fafc', 0.02)
-        buoyVb.add(0, 7, 0, '#00ff9d', 0.0)
-        const buoyMesh = buoyVb.buildCulledMesh()
-        buoyMesh.castShadow = false
-        buoyMesh.position.set(0.95, -0.34, -0.22)
+        const buoyMesh = this.modelManager ? this.modelManager.getMesh('buoy') : null
+        if (buoyMesh) {
+            buoyMesh.castShadow = false
+            buoyMesh.position.set(0.95, -0.34, -0.22)
 
-        const buoyProxy = new THREE.Mesh(propProxyGeo, this.proxyMat)
-        buoyProxy.userData = { interactiveType: 'floating_prop' }
-        buoyMesh.add(buoyProxy)
-        this.interactiveMeshes.push(buoyProxy)
-        this.group.add(buoyMesh)
-        this.buoyProp = { mesh: buoyMesh, x: 0.95, z: -0.22, phase: 1.5 }
+            const buoyProxy = new THREE.Mesh(propProxyGeo, this.proxyMat)
+            buoyProxy.userData = { interactiveType: 'floating_prop' }
+            buoyMesh.add(buoyProxy)
+            this.interactiveMeshes.push(buoyProxy)
+            this.group.add(buoyMesh)
+            this.buoyProp = { mesh: buoyMesh, x: 0.95, z: -0.22, phase: 1.5 }
+        }
     }
 
     buildVoxelCloudsAndSeagulls() {
         const cloudConfigs = [
-            // Базові хмари (видимі за будь-якої погоди)
+            // Базові хмари
             { x: -1.65, y: 1.42, z: 0.35, scale: 1.0, stormOnly: false },
             { x: 0.15, y: 1.52, z: -0.42, scale: 1.1, stormOnly: false },
             { x: 1.55, y: 1.38, z: 0.25, scale: 0.9, stormOnly: false },
-            // Додаткові грозові хмари (з'являються під час шторму)
+            // Додаткові грозові хмари
             { x: -2.25, y: 1.28, z: -0.28, scale: 1.15, stormOnly: true },
             { x: -0.85, y: 1.46, z: -0.15, scale: 1.25, stormOnly: true },
             { x: -0.35, y: 1.34, z: 0.48, scale: 1.1, stormOnly: true },
@@ -253,15 +201,13 @@ export class VoxelWildlifeAndProps {
             { x: 2.05, y: 1.26, z: -0.25, scale: 1.05, stormOnly: true }
         ]
         const cloudProxyGeo = new THREE.BoxGeometry(0.68, 0.28, 0.42)
+        const cloudGeo = this.modelManager ? this.modelManager.getGeometry('clouds') : null
 
         for (let i = 0; i < cloudConfigs.length; i++) {
             const cfg = cloudConfigs[i]
-            const vb = new VoxelBuilder(0.055 * cfg.scale, 1.0)
-            vb.fillEllipsoid(0, 0, 0, 5, 2.2, 3, '#ffffff', 0.02)
-            vb.fillEllipsoid(-3, -0.5, 1, 3.5, 1.8, 2.5, '#e2e8f0', 0.02)
-            vb.fillEllipsoid(3, -0.5, -1, 3.5, 1.8, 2.5, '#cbd5e1', 0.02)
-            // Безшовний суцільний меш без щілин та прихованих граней
-            const cloudMesh = vb.buildCulledMesh()
+            const cloudMat = new THREE.MeshLambertMaterial({ vertexColors: true })
+            const cloudMesh = new THREE.Mesh(cloudGeo || new THREE.BoxGeometry(0.5, 0.25, 0.35), cloudMat)
+            cloudMesh.scale.setScalar(cfg.scale)
             cloudMesh.castShadow = true
             cloudMesh.receiveShadow = false
             cloudMesh.position.set(cfg.x, cfg.y, cfg.z)
@@ -288,38 +234,17 @@ export class VoxelWildlifeAndProps {
             })
         }
 
-        // 1. Геометрія тіла чайки з дзьобом (vertexColors)
-        const bodyGeo = new THREE.BoxGeometry(0.036, 0.024, 0.036)
-        const countBody = bodyGeo.attributes.position.count
-        const bodyColors = new Float32Array(countBody * 3)
-        bodyColors.fill(1.0)
-        bodyGeo.setAttribute('color', new THREE.BufferAttribute(bodyColors, 3))
+        // Зграя чайок
+        const birdBodyGeo = this.modelManager ? this.modelManager.getGeometry('seagull', 'SeagullBody') : new THREE.BoxGeometry(0.036, 0.024, 0.036)
+        const birdWingGeo = this.modelManager ? this.modelManager.getGeometry('seagull', 'SeagullWing') : new THREE.BoxGeometry(0.028, 0.01, 0.08)
 
-        const beakGeo = new THREE.BoxGeometry(0.036 * 0.6, 0.024 * 0.5, 0.036 * 0.5)
-        beakGeo.translate(0.022, 0, 0)
-        const countBeak = beakGeo.attributes.position.count
-        const beakColors = new Float32Array(countBeak * 3)
-        const beakColor = new THREE.Color('#f59e0b')
-        for (let k = 0; k < countBeak; k++) {
-            beakColors[k * 3] = beakColor.r
-            beakColors[k * 3 + 1] = beakColor.g
-            beakColors[k * 3 + 2] = beakColor.b
-        }
-        beakGeo.setAttribute('color', new THREE.BufferAttribute(beakColors, 3))
-
-        const mergedBirdBodyGeo = mergeGeometries([bodyGeo, beakGeo])
-        const birdBodyMat = new THREE.MeshLambertMaterial({
-            vertexColors: true
-        })
-
-        // 2. Геометрія крил
-        const wingGeo = new THREE.BoxGeometry(0.036 * 0.8, 0.024 * 0.4, 0.036 * 2.2)
+        const birdBodyMat = new THREE.MeshLambertMaterial({ vertexColors: true })
         const whiteMat = new THREE.MeshLambertMaterial({ color: '#ffffff' })
 
         const birdCount = 4
-        this.birdBodiesMesh = new THREE.InstancedMesh(mergedBirdBodyGeo, birdBodyMat, birdCount)
-        this.birdLeftWingsMesh = new THREE.InstancedMesh(wingGeo, whiteMat, birdCount)
-        this.birdRightWingsMesh = new THREE.InstancedMesh(wingGeo, whiteMat, birdCount)
+        this.birdBodiesMesh = new THREE.InstancedMesh(birdBodyGeo, birdBodyMat, birdCount)
+        this.birdLeftWingsMesh = new THREE.InstancedMesh(birdWingGeo, whiteMat, birdCount)
+        this.birdRightWingsMesh = new THREE.InstancedMesh(birdWingGeo, whiteMat, birdCount)
 
         for (const m of [this.birdBodiesMesh, this.birdLeftWingsMesh, this.birdRightWingsMesh]) {
             m.castShadow = false
@@ -340,7 +265,7 @@ export class VoxelWildlifeAndProps {
     }
 
     /**
-     * Оновлює кількість, розмір та колір хмар, а також видимість чайок відповідно до погодного режиму
+     * Оновлює колір та видимість хмар і чайок відповідно до погодного режиму
      */
     setWeatherMode(mode) {
         const isStorm = mode === 'storm'
@@ -351,9 +276,9 @@ export class VoxelWildlifeAndProps {
         this.birdRightWingsMesh.visible = showSeagulls
 
         let targetColor = '#ffffff'
-        if (mode === 'storm') targetColor = '#18181b'      // густі чорно-графітові грозові хмари
-        else if (mode === 'night') targetColor = '#334155' // темно-сині нічні хмари
-        else if (mode === 'sunset') targetColor = '#fdba74'// багряно-золоті хмари заходу сонця
+        if (mode === 'storm') targetColor = '#18181b'
+        else if (mode === 'night') targetColor = '#334155'
+        else if (mode === 'sunset') targetColor = '#fdba74'
 
         for (const c of this.clouds) {
             c.mesh.material.color.set(targetColor)
@@ -393,7 +318,7 @@ export class VoxelWildlifeAndProps {
     }
 
     update(elapsedTime, ocean) {
-        // Плавучість тулуба Кракена на хвилях + вертикальний ривок при кліку
+        // Плавучість тіла Кракена на хвилях
         const kBuoy = ocean.getBuoyancyTransform(-1.22, 0.68, elapsedTime, 0.22)
         this.krakenGroup.position.y = kBuoy.height + this.krakenSurgeY
         this.krakenGroup.rotation.z = kBuoy.pitch * 0.55
@@ -428,19 +353,21 @@ export class VoxelWildlifeAndProps {
         this.tentacleInstancedMesh.instanceMatrix.needsUpdate = true
         this.suckerInstancedMesh.instanceMatrix.needsUpdate = true
 
-        // Анімація плаваючих бочок
-        for (let i = 0; i < this.barrels.length; i++) {
-            const b = this.barrels[i]
-            const buoy = ocean.getBuoyancyTransform(b.x, b.z, elapsedTime, 0.16)
-            this.dummyBarrel.position.set(b.x, buoy.height, b.z)
-            this.dummyBarrel.rotation.set(buoy.roll * 1.15, 0, buoy.pitch * 1.15)
-            this.dummyBarrel.updateMatrix()
-            this.barrelInstancedMesh.setMatrixAt(i, this.dummyBarrel.matrix)
-            b.proxy.position.set(b.x, buoy.height, b.z)
+        // Плаваючі бочки
+        if (this.barrelInstancedMesh) {
+            for (let i = 0; i < this.barrels.length; i++) {
+                const b = this.barrels[i]
+                const buoy = ocean.getBuoyancyTransform(b.x, b.z, elapsedTime, 0.16)
+                this.dummyBarrel.position.set(b.x, buoy.height, b.z)
+                this.dummyBarrel.rotation.set(buoy.roll * 1.15, 0, buoy.pitch * 1.15)
+                this.dummyBarrel.updateMatrix()
+                this.barrelInstancedMesh.setMatrixAt(i, this.dummyBarrel.matrix)
+                b.proxy.position.set(b.x, buoy.height, b.z)
+            }
+            this.barrelInstancedMesh.instanceMatrix.needsUpdate = true
         }
-        this.barrelInstancedMesh.instanceMatrix.needsUpdate = true
 
-        // Навігаційний буй
+        // Сигнальний буй
         if (this.buoyProp) {
             const buoy = ocean.getBuoyancyTransform(this.buoyProp.x, this.buoyProp.z, elapsedTime, 0.16)
             this.buoyProp.mesh.position.y = buoy.height
@@ -453,7 +380,7 @@ export class VoxelWildlifeAndProps {
             c.mesh.position.y = c.baseY + Math.cos(elapsedTime * 0.6 + c.phase) * 0.04
         }
 
-        // Анімація зграї чайок (активна лише вдень та на заході сонця)
+        // Політ чайок
         if (!this.areSeagullsActive) return
 
         for (let i = 0; i < this.seagulls.length; i++) {
